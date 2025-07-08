@@ -10,7 +10,7 @@ import { blink } from '@/blink/client'
 import toast from 'react-hot-toast'
 
 export function Upload() {
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [uploaderName, setUploaderName] = useState('')
   const [secretCode, setSecretCode] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -33,21 +33,21 @@ export function Upload() {
     e.stopPropagation()
     setDragActive(false)
     
-    const droppedFile = e.dataTransfer.files[0]
-    if (droppedFile) {
-      setFile(droppedFile)
+    const droppedFiles = Array.from(e.dataTransfer.files)
+    if (droppedFiles.length > 0) {
+      setFiles(droppedFiles)
     }
   }, [])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
-      setFile(selectedFile)
+    const selectedFiles = Array.from(e.target.files || [])
+    if (selectedFiles.length > 0) {
+      setFiles(selectedFiles)
     }
   }
 
   const handleUpload = async () => {
-    if (!file) return
+    if (files.length === 0) return
     if (!uploaderName.trim()) {
       toast.error('Please enter your name')
       return
@@ -57,45 +57,61 @@ export function Upload() {
     setUploadProgress(0)
 
     try {
-      // Generate unique file ID
-      const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      
-      // Upload to Blink storage
-      const { publicUrl } = await blink.storage.upload(
-        file,
-        `files/${fileId}`,
-        {
-          onProgress: (percent) => setUploadProgress(percent),
+      const fileRecords = []
+      const folderId = files.length > 1 ? `folder_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : undefined
+
+      if (folderId) {
+        const folderRecord = {
+          id: folderId,
+          name: `Folder of ${files.length} files`,
+          uploaderName: uploaderName.trim(),
+          createdAt: new Date().toISOString(),
         }
-      )
-
-      // Create file record
-      const fileRecord = {
-        id: fileId,
-        originalName: file.name,
-        fileSize: file.size,
-        mimeType: file.type,
-        storagePath: `files/${fileId}`,
-        publicUrl: publicUrl,
-        downloadCount: 0,
-        createdAt: new Date().toISOString(),
-        uploaderName: uploaderName.trim(),
-        secretCode: secretCode.trim(),
+        // In a real DB scenario, you would save this record.
+        // For localStorage fallback:
+        const existingFolders = JSON.parse(localStorage.getItem('folders') || '[]')
+        existingFolders.push(folderRecord)
+        localStorage.setItem('folders', JSON.stringify(existingFolders))
       }
 
-      try {
-        // Try to save to database
-        await blink.db.files.create(fileRecord)
-      } catch {
-        console.log('Database not ready, using localStorage fallback')
-        // Fallback to localStorage
-        const existingFiles = JSON.parse(localStorage.getItem('files') || '[]')
-        existingFiles.push(fileRecord)
-        localStorage.setItem('files', JSON.stringify(existingFiles))
+      for (const file of files) {
+        const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        
+        const { publicUrl } = await blink.storage.upload(
+          file,
+          `files/${fileId}`,
+          {
+            onProgress: (percent) => setUploadProgress(percent),
+          }
+        )
+
+        const fileRecord = {
+          id: fileId,
+          originalName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+          storagePath: `files/${fileId}`,
+          publicUrl: publicUrl,
+          downloadCount: 0,
+          createdAt: new Date().toISOString(),
+          uploaderName: uploaderName.trim(),
+          secretCode: secretCode.trim(),
+          folderId: folderId,
+        }
+        fileRecords.push(fileRecord)
       }
 
-      toast.success('File uploaded successfully!')
-      navigate(`/file/${fileId}`)
+      // Save to localStorage
+      const existingFiles = JSON.parse(localStorage.getItem('files') || '[]')
+      localStorage.setItem('files', JSON.stringify([...existingFiles, ...fileRecords]))
+
+      toast.success('Files uploaded successfully!')
+      if (folderId) {
+        // Navigate to a new folder view page, which we will create next
+        navigate(`/folder/${folderId}`)
+      } else {
+        navigate(`/file/${fileRecords[0].id}`)
+      }
 
     } catch (error) {
       console.error('Upload failed:', error)
@@ -164,6 +180,7 @@ export function Upload() {
                 >
                   <input
                     type="file"
+                    multiple
                     onChange={handleFileSelect}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     disabled={uploading}
@@ -221,7 +238,7 @@ export function Upload() {
                 </div>
 
                 <AnimatePresence>
-                  {file && (
+                  {files.length > 0 && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
@@ -235,8 +252,10 @@ export function Upload() {
                             <FileText className="w-5 h-5 text-blue-600" />
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{file.name}</p>
-                            <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
+                            <p className="font-medium text-gray-900">{files.length} file(s) selected</p>
+                            <p className="text-sm text-gray-500">
+                              Total size: {formatFileSize(files.reduce((acc, file) => acc + file.size, 0))}
+                            </p>
                           </div>
                         </div>
                         
