@@ -1,15 +1,18 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Upload as UploadIcon, FileText, Check, Loader2 } from 'lucide-react'
+import { Upload as UploadIcon, FileText, Check, Loader2, User, KeyRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { Input } from '@/components/ui/input'
 import { blink } from '@/blink/client'
 import toast from 'react-hot-toast'
 
 export function Upload() {
   const [file, setFile] = useState<File | null>(null)
+  const [uploaderName, setUploaderName] = useState('')
+  const [secretCode, setSecretCode] = useState('')
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [dragActive, setDragActive] = useState(false)
@@ -45,6 +48,10 @@ export function Upload() {
 
   const handleUpload = async () => {
     if (!file) return
+    if (!uploaderName.trim()) {
+      toast.error('Please enter your name')
+      return
+    }
 
     setUploading(true)
     setUploadProgress(0)
@@ -71,7 +78,9 @@ export function Upload() {
         storagePath: `files/${fileId}`,
         publicUrl: publicUrl,
         downloadCount: 0,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        uploaderName: uploaderName.trim(),
+        secretCode: secretCode.trim(),
       }
 
       try {
@@ -114,7 +123,7 @@ export function Upload() {
               <FileText className="w-5 h-5 text-white" />
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-              File Share Hub
+              File by Atlas
             </h1>
           </div>
         </div>
@@ -177,6 +186,29 @@ export function Upload() {
                     <p className="text-gray-500 mb-4">
                       or click to browse
                     </p>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Input 
+                          placeholder="Your Name" 
+                          value={uploaderName}
+                          onChange={(e) => setUploaderName(e.target.value)}
+                          className="pl-10"
+                          disabled={uploading}
+                        />
+                      </div>
+                      <div className="relative">
+                        <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                        <Input 
+                          placeholder="Secret Code (Optional)" 
+                          value={secretCode}
+                          onChange={(e) => setSecretCode(e.target.value)}
+                          className="pl-10"
+                          disabled={uploading}
+                        />
+                      </div>
+                    </div>
                     
                     <Button
                       variant="outline"

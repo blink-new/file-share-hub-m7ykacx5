@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Download, FileText, Calendar, HardDrive, Eye, ArrowLeft, Share2, Copy, Check } from 'lucide-react'
+import { Download, FileText, Calendar, HardDrive, Eye, ArrowLeft, Share2, Copy, Check, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +18,8 @@ interface FileRecord {
   publicUrl: string
   downloadCount: number
   createdAt: string
+  uploaderName?: string
+  secretCode?: string
 }
 
 export function FileView() {
@@ -184,7 +186,7 @@ export function FileView() {
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                File Share Hub
+                File by Atlas
               </h1>
             </div>
             <Button
@@ -230,6 +232,12 @@ export function FileView() {
                         <Eye className="w-4 h-4 mr-1" />
                         {file.downloadCount} downloads
                       </span>
+                      {file.uploaderName && (
+                        <span className="flex items-center">
+                          <User className="w-4 h-4 mr-1" />
+                          {file.uploaderName}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
